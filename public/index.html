@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Dashboard</title>
+  <link rel="stylesheet" href="gridstack.min.css" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+ 
+ <video autoplay loop muted playsinline class="background-video">
+    <source src="Background.mp4" type="video/mp4">
+</video>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+     <img src="new_logo_nobg.png" alt="SimplyStocks Logo" class="title">
+    <input type="text" class="search-bar" placeholder="Search for a company...">
+    <button class="add-view-btn">Add View</button>
+    <button class="chat-btn">Chat</button>
+  </div>
+
+  <!-- Grid Area -->
+  <div class="grid-stack"></div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8nJfZBavuUCYqcaadYx7vB0T0ugNDt4Y",
+      authDomain: "stocky-cdd1f.firebaseapp.com",
+      projectId: "stocky-cdd1f",
+      storageBucket: "stocky-cdd1f.appspot.com",
+      messagingSenderId: "1043773682180",
+      appId: "1:1043773682180:web:9f23ff50d1d7eb70f0d042",
+      measurementId: "G-QL4ZEK3BNT"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+  <script src="gridstack-all.js"></script>
+  <!-- <script src="widgets.js"></script> -->
+  <script src="env.js"></script>
+  <script src="chat-data-sources.js"></script>
+  <script src="test.js"></script>
+
+  
+</body>
+</html>

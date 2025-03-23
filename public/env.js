@@ -8,7 +8,7 @@ const ENV = {
   GEMINI_API_KEY: 'AIzaSyAIXbCrtLLCvnNWObKJMRAu0jOUzu_Vzwk', // Sample key for testing - replace with your own for production
   
   // API configuration
-  AI_MODEL: 'gemini-pro',     // The Gemini model to use
+  AI_MODEL: 'gemini-2.0-flash',     // The Gemini model to use
   MAX_TOKENS: 300,            // Maximum tokens for AI responses
   TEMPERATURE: 0.7,           // Creativity level (0-1)
   

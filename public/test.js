@@ -128,13 +128,13 @@ function showPanelOptions(grid) {
   // Add panel options
   const optionHandlers = {
     'Stock Values': (symbol) => renderStockVals(grid, symbol),
-    'Fundamental Indicators': (symbol) => renderFundamentalWidget(grid, symbol),
+    'Fundamental Indicators': () => renderFundamentalWidget(grid),
     'Technical Indicators': (symbol) => renderTechnicalWidget(grid, symbol),
-    'Sentiment Analysis': (symbol) => renderSentimentWidget(grid, symbol),
-    'Balance Sheet Analysis': (symbol) => renderBalanceSheetWidget(grid, symbol),
-    'FRED Rates': (symbol) => renderFredRatesWidget(grid, symbol),
-    'RRP Data': (symbol) => renderRrpDataWidget(grid, symbol),
-    'Treasury Issuance': (symbol) => renderTreasuryIssuanceWidget(grid, symbol),
+    'Sentiment Analysis': () => renderSentimentWidget(grid),
+    'Balance Sheet Analysis': () => renderBalanceSheetWidget(grid),
+    'FRED Rates': () => renderFredRatesWidget(grid),
+    'RRP Data': () => renderRrpDataWidget(grid),
+    'Treasury Issuance': () => renderTreasuryIssuanceWidget(grid),
     'Chat Assistant': () => renderChatWidget(grid)
   };
   
@@ -581,7 +581,7 @@ function renderStockVals(grid, symbol = 'NVDA') {
   fetchStockData();
 }
 
-function renderFundamentalWidget(grid, symbol) {
+function renderFundamentalWidget(grid) {
   // Create widget element
   const widgetElement = document.createElement('div');
   widgetElement.className = 'grid-stack-item-content';
@@ -793,24 +793,25 @@ function renderTechnicalWidget(grid, symbol = 'NVDA') {
   widgetContent.className = 'widget-content';
 
   const title = document.createElement('h2');
-  title.textContent = 'Technical Indicators';
+  title.textContent = `${symbol} Technical Indicators`;
   title.style.color = '#00FFC2';
   widgetContent.appendChild(title);
 
   // Loading indicator
   const loadingIndicator = document.createElement('div');
-  loadingIndicator.textContent = 'Loading technical indicators...';
+  loadingIndicator.textContent = 'Loading technical data...';
   loadingIndicator.style.color = '#fff';
   loadingIndicator.style.padding = '20px 0';
   widgetContent.appendChild(loadingIndicator);
 
-  // Create empty metrics list
-  const list = document.createElement('ul');
-  list.style.color = '#fff';
-  list.style.padding = '10px 0';
-  list.style.listStyle = 'none';
-  list.style.display = 'none'; // Hide until data is loaded
-  widgetContent.appendChild(list);
+  // Create table for technical data
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.color = '#fff';
+  table.style.marginTop = '15px';
+  table.style.display = 'none'; // Hide until data is loaded
+  widgetContent.appendChild(table);
 
   // Add remove button
   const removeBtn = document.createElement('button');
@@ -825,52 +826,458 @@ function renderTechnicalWidget(grid, symbol = 'NVDA') {
   const widget = grid.addWidget({ w: 4, h: 4, el: widgetElement });
   removeBtn.addEventListener('click', () => grid.removeWidget(widget));
 
-  // For now, instead of making an actual API call, we'll simulate it
-  // In a real implementation, you would call your backend API
-  setTimeout(() => {
-    // Remove loading indicator
-    widgetContent.removeChild(loadingIndicator);
-    
-    // Update the title with the symbol
-    title.textContent = `${symbol} Technical Indicators`;
-    
-    // Technical indicators with sample data
-    // In a real implementation, these would come from your API
-    const indicators = [
-      { name: 'Relative Strength Index (RSI)', value: '58.24*' },
-      { name: 'Moving Average Convergence Divergence (MACD)', value: '2.15*' },
-      { name: 'Bollinger Bands Width', value: '4.32%*' },
-      { name: 'Average Directional Index (ADX)', value: '27.8*' },
-      { name: 'Stochastic Oscillator', value: '65.3%*' },
-      { name: 'On-Balance Volume (OBV)', value: '2.5M*' },
-      { name: 'Moving Average (50-day)', value: '$105.45*' },
-      { name: 'Moving Average (200-day)', value: '$92.78*' }
-    ];
-    
-    // Add a note about asterisks
-    const noteItem = document.createElement('li');
-    noteItem.textContent = '* Values are sample data';
-    noteItem.style.fontStyle = 'italic';
-    noteItem.style.fontSize = '12px';
-    noteItem.style.marginTop = '10px';
-    noteItem.style.color = '#999';
-    
-    // Display the indicators
-    list.innerHTML = '';
-    indicators.forEach(indicator => {
-      const item = document.createElement('li');
-      item.textContent = `${indicator.name}: ${indicator.value}`;
-      item.style.padding = '4px 0';
-      list.appendChild(item);
-    });
-    
-    list.appendChild(noteItem);
-    list.style.display = 'block';
-  }, 1000); // Simulate 1 second loading time
+  // Function to fetch technical data
+  const fetchTechnicalData = async () => {
+    try {
+      // Similar approach to stockTimeData.py but using Fetch API
+      const startDate = '2023-01-01';
+      const endDate = new Date().toISOString().split('T')[0]; // Today's date
+      
+      // Fetch from Alpha Vantage as a fallback since we can't directly call Alpaca from browser
+      const apiKey = 'KO9Q5OPB94XH9XJR'; // Free API key with limited requests
+      const apiUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      if (data['Error Message'] || !data['Time Series (Daily)']) {
+        throw new Error('API error or symbol not found');
+      }
+      
+      // Process the data
+      const timeSeries = data['Time Series (Daily)'];
+      const dates = Object.keys(timeSeries).slice(0, 5); // Get most recent 5 days
+      
+      // Create header row
+      const headerRow = document.createElement('tr');
+      ['Date', 'Open', 'High', 'Low', 'Close', 'Volume'].forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        th.style.padding = '8px';
+        th.style.textAlign = 'left';
+        th.style.borderBottom = '1px solid #444';
+        headerRow.appendChild(th);
+      });
+      table.appendChild(headerRow);
+      
+      // Create data rows
+      dates.forEach(date => {
+        const row = document.createElement('tr');
+        row.style.transition = 'background-color 0.2s';
+        row.addEventListener('mouseover', () => {
+          row.style.backgroundColor = 'rgba(75, 192, 192, 0.1)';
+        });
+        row.addEventListener('mouseout', () => {
+          row.style.backgroundColor = 'transparent';
+        });
+        
+        // Date cell
+        const dateCell = document.createElement('td');
+        dateCell.textContent = date;
+        dateCell.style.padding = '8px';
+        dateCell.style.borderBottom = '1px solid #444';
+        row.appendChild(dateCell);
+        
+        // OHLCV cells
+        const dayData = timeSeries[date];
+        [
+          dayData['1. open'],
+          dayData['2. high'],
+          dayData['3. low'],
+          dayData['4. close'],
+          dayData['5. volume']
+        ].forEach((value, index) => {
+          const td = document.createElement('td');
+          // Format number based on what it is (price or volume)
+          if (index < 4) {
+            td.textContent = `$${parseFloat(value).toFixed(2)}`;
+          } else {
+            td.textContent = parseInt(value).toLocaleString();
+          }
+          td.style.padding = '8px';
+          td.style.borderBottom = '1px solid #444';
+          row.appendChild(td);
+        });
+        
+        table.appendChild(row);
+      });
+      
+      // Show table and remove loading indicator
+      loadingIndicator.remove();
+      table.style.display = 'table';
+      
+      // Add a "View more" button
+      const viewMoreContainer = document.createElement('div');
+      viewMoreContainer.style.textAlign = 'center';
+      viewMoreContainer.style.marginTop = '15px';
+      
+      const viewMoreBtn = document.createElement('button');
+      viewMoreBtn.textContent = 'View More Data';
+      viewMoreBtn.style.padding = '8px 16px';
+      viewMoreBtn.style.backgroundColor = 'rgba(75, 192, 192, 0.2)';
+      viewMoreBtn.style.color = '#fff';
+      viewMoreBtn.style.border = 'none';
+      viewMoreBtn.style.borderRadius = '4px';
+      viewMoreBtn.style.cursor = 'pointer';
+      
+      viewMoreBtn.addEventListener('mouseover', () => {
+        viewMoreBtn.style.backgroundColor = 'rgba(75, 192, 192, 0.3)';
+      });
+      
+      viewMoreBtn.addEventListener('mouseout', () => {
+        viewMoreBtn.style.backgroundColor = 'rgba(75, 192, 192, 0.2)';
+      });
+      
+      viewMoreBtn.addEventListener('click', () => {
+        window.open(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&datatype=csv&apikey=${apiKey}`, '_blank');
+      });
+      
+      viewMoreContainer.appendChild(viewMoreBtn);
+      widgetContent.appendChild(viewMoreContainer);
+      
+    } catch (error) {
+      console.error('Error fetching technical data:', error);
+      
+      // Show error and fallback to sample data
+      loadingIndicator.textContent = 'Could not load data. Using sample values.';
+      
+      setTimeout(() => {
+        // Create header row for sample data
+        const headerRow = document.createElement('tr');
+        ['Date', 'Open', 'High', 'Low', 'Close', 'Volume'].forEach(header => {
+          const th = document.createElement('th');
+          th.textContent = header;
+          th.style.padding = '8px';
+          th.style.textAlign = 'left';
+          th.style.borderBottom = '1px solid #444';
+          headerRow.appendChild(th);
+        });
+        table.appendChild(headerRow);
+        
+        // Sample data
+        const sampleData = [
+          { date: '2023-06-01', open: 102.50, high: 105.75, low: 101.25, close: 103.50, volume: 1250000 },
+          { date: '2023-06-02', open: 103.75, high: 107.25, low: 103.25, close: 106.75, volume: 1420000 },
+          { date: '2023-06-03', open: 106.50, high: 108.25, low: 105.75, close: 107.50, volume: 1150000 },
+          { date: '2023-06-04', open: 107.75, high: 109.50, low: 106.25, close: 108.75, volume: 1325000 },
+          { date: '2023-06-05', open: 108.50, high: 110.25, low: 107.75, close: 109.25, volume: 1180000 }
+        ];
+        
+        // Create data rows for sample data
+        sampleData.forEach(day => {
+          const row = document.createElement('tr');
+          row.style.transition = 'background-color 0.2s';
+          row.addEventListener('mouseover', () => {
+            row.style.backgroundColor = 'rgba(75, 192, 192, 0.1)';
+          });
+          row.addEventListener('mouseout', () => {
+            row.style.backgroundColor = 'transparent';
+          });
+          
+          // Date cell
+          const dateCell = document.createElement('td');
+          dateCell.textContent = day.date;
+          dateCell.style.padding = '8px';
+          dateCell.style.borderBottom = '1px solid #444';
+          row.appendChild(dateCell);
+          
+          // OHLCV cells
+          [
+            `$${day.open.toFixed(2)}*`,
+            `$${day.high.toFixed(2)}*`,
+            `$${day.low.toFixed(2)}*`,
+            `$${day.close.toFixed(2)}*`,
+            `${day.volume.toLocaleString()}*`
+          ].forEach(value => {
+            const td = document.createElement('td');
+            td.textContent = value;
+            td.style.padding = '8px';
+            td.style.borderBottom = '1px solid #444';
+            row.appendChild(td);
+          });
+          
+          table.appendChild(row);
+        });
+        
+        // Add note about sample data
+        const noteRow = document.createElement('tr');
+        const noteCell = document.createElement('td');
+        noteCell.colSpan = 6;
+        noteCell.textContent = '* Values are sample data';
+        noteCell.style.fontSize = '12px';
+        noteCell.style.fontStyle = 'italic';
+        noteCell.style.color = '#999';
+        noteRow.appendChild(noteCell);
+        table.appendChild(noteRow);
+        
+        // Show table and remove loading indicator
+        loadingIndicator.remove();
+        table.style.display = 'table';
+      }, 1000);
+    }
+  };
+
+  // Fetch the data
+  fetchTechnicalData();
 }
 
-function renderSentimentWidget(grid, symbol) {
-  console.log("Render Sentiment Widget");
+function renderSentimentWidget(grid, symbol = 'NVDA') {
+  console.log("Rendering Sentiment Widget for " + symbol);
+  
+  // Create widget element
+  const widgetElement = document.createElement('div');
+  widgetElement.className = 'grid-stack-item-content';
+
+  const widgetContent = document.createElement('div');
+  widgetContent.className = 'widget-content';
+
+  const title = document.createElement('h2');
+  title.textContent = `${symbol} Sentiment Analysis`;
+  title.style.color = '#00FFC2';
+  widgetContent.appendChild(title);
+
+  // Loading indicator
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.textContent = 'Analyzing sentiment data...';
+  loadingIndicator.style.color = '#fff';
+  loadingIndicator.style.padding = '20px 0';
+  loadingIndicator.style.textAlign = 'center';
+  widgetContent.appendChild(loadingIndicator);
+
+  // Create sentiment container
+  const sentimentContainer = document.createElement('div');
+  sentimentContainer.style.width = '100%';
+  sentimentContainer.style.display = 'none';
+  widgetContent.appendChild(sentimentContainer);
+
+  // Add remove button
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'remove-btn';
+  removeBtn.textContent = 'x';
+  removeBtn.setAttribute('title', 'Remove widget');
+  widgetContent.appendChild(removeBtn);
+
+  widgetElement.appendChild(widgetContent);
+
+  // Add to grid first so it appears immediately
+  const widget = grid.addWidget({ w: 6, h: 6, el: widgetElement });
+  removeBtn.addEventListener('click', () => grid.removeWidget(widget));
+
+  // Interpret sentiment score
+  const interpretSentiment = (score) => {
+    if (score >= 0.5) return { text: 'Very Positive', color: '#00FF00' };
+    if (score >= 0.2) return { text: 'Positive', color: '#88FF88' };
+    if (score >= -0.2) return { text: 'Neutral', color: '#FFFF88' };
+    if (score >= -0.5) return { text: 'Negative', color: '#FF8888' };
+    return { text: 'Very Negative', color: '#FF0000' };
+  };
+  
+  // Create a sentiment meter visualization
+  const createSentimentMeter = (container, score) => {
+    const interpretation = interpretSentiment(score);
+    
+    const meterContainer = document.createElement('div');
+    meterContainer.style.textAlign = 'center';
+    meterContainer.style.margin = '20px 0';
+    
+    // Sentiment score display
+    const scoreDisplay = document.createElement('div');
+    scoreDisplay.style.fontSize = '32px';
+    scoreDisplay.style.fontWeight = 'bold';
+    scoreDisplay.style.color = interpretation.color;
+    scoreDisplay.textContent = score.toFixed(2);
+    meterContainer.appendChild(scoreDisplay);
+    
+    // Sentiment interpretation
+    const interpretationDisplay = document.createElement('div');
+    interpretationDisplay.style.fontSize = '18px';
+    interpretationDisplay.style.marginTop = '5px';
+    interpretationDisplay.textContent = interpretation.text;
+    interpretationDisplay.style.color = interpretation.color;
+    meterContainer.appendChild(interpretationDisplay);
+    
+    // Sentiment meter (visual representation)
+    const meterBackground = document.createElement('div');
+    meterBackground.style.width = '100%';
+    meterBackground.style.height = '15px';
+    meterBackground.style.backgroundColor = '#333';
+    meterBackground.style.borderRadius = '10px';
+    meterBackground.style.marginTop = '15px';
+    meterBackground.style.position = 'relative';
+    meterBackground.style.overflow = 'hidden';
+    
+    // Calculate position (from -1 to 1 scale to 0 to 100%)
+    const position = ((score + 1) / 2 * 100);
+    
+    // Create gradient background
+    meterBackground.style.background = 'linear-gradient(to right, #FF0000, #FFFF00, #00FF00)';
+    
+    // Create indicator
+    const indicator = document.createElement('div');
+    indicator.style.width = '4px';
+    indicator.style.height = '20px';
+    indicator.style.backgroundColor = '#fff';
+    indicator.style.position = 'absolute';
+    indicator.style.left = `${position}%`;
+    indicator.style.top = '-2px';
+    indicator.style.transform = 'translateX(-2px)';
+    meterBackground.appendChild(indicator);
+    
+    meterContainer.appendChild(meterBackground);
+    
+    container.appendChild(meterContainer);
+  };
+  
+  // Create news list
+  const createNewsList = (container, newsItems) => {
+    const newsListContainer = document.createElement('div');
+    newsListContainer.style.marginTop = '20px';
+    
+    const newsHeading = document.createElement('h3');
+    newsHeading.textContent = 'Recent News';
+    newsHeading.style.color = '#00FFC2';
+    newsHeading.style.marginBottom = '10px';
+    newsListContainer.appendChild(newsHeading);
+    
+    const newsList = document.createElement('div');
+    newsList.className = 'news-list';
+    newsList.style.maxHeight = '300px';
+    newsList.style.overflowY = 'auto';
+    
+    newsItems.forEach(item => {
+      const newsItem = document.createElement('div');
+      newsItem.className = 'news-item';
+      newsItem.style.marginBottom = '15px';
+      newsItem.style.padding = '10px';
+      newsItem.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+      newsItem.style.borderRadius = '5px';
+      newsItem.style.borderLeft = `4px solid ${interpretSentiment(parseFloat(item.sentiment)).color}`;
+      
+      const newsTitle = document.createElement('div');
+      newsTitle.className = 'news-title';
+      newsTitle.style.fontWeight = 'bold';
+      newsTitle.style.marginBottom = '5px';
+      
+      const titleLink = document.createElement('a');
+      titleLink.href = item.url;
+      titleLink.target = '_blank';
+      titleLink.textContent = item.title;
+      titleLink.style.color = '#fff';
+      titleLink.style.textDecoration = 'none';
+      titleLink.addEventListener('mouseover', () => {
+        titleLink.style.textDecoration = 'underline';
+      });
+      titleLink.addEventListener('mouseout', () => {
+        titleLink.style.textDecoration = 'none';
+      });
+      
+      newsTitle.appendChild(titleLink);
+      newsItem.appendChild(newsTitle);
+      
+      const newsSummary = document.createElement('div');
+      newsSummary.className = 'news-summary';
+      newsSummary.textContent = item.summary;
+      newsSummary.style.fontSize = '14px';
+      newsSummary.style.marginBottom = '5px';
+      newsItem.appendChild(newsSummary);
+      
+      const newsFooter = document.createElement('div');
+      newsFooter.className = 'news-footer';
+      newsFooter.style.display = 'flex';
+      newsFooter.style.justifyContent = 'space-between';
+      newsFooter.style.fontSize = '12px';
+      newsFooter.style.color = '#999';
+      
+      const newsDate = document.createElement('span');
+      newsDate.textContent = `Published: ${item.time_published.substring(0, 10)}`;
+      newsFooter.appendChild(newsDate);
+      
+      const newsSentiment = document.createElement('span');
+      newsSentiment.textContent = `Sentiment: ${item.sentiment}`;
+      newsSentiment.style.color = interpretSentiment(parseFloat(item.sentiment)).color;
+      newsFooter.appendChild(newsSentiment);
+      
+      newsItem.appendChild(newsFooter);
+      newsList.appendChild(newsItem);
+    });
+    
+    newsListContainer.appendChild(newsList);
+    container.appendChild(newsListContainer);
+  };
+  
+  // Generate fake news for fallback
+  const generateFakeNews = (symbol) => {
+    const currentDate = new Date();
+    const dateStr = currentDate.toISOString().split('T')[0];
+    
+    return [
+      {
+        title: `${symbol} Reports Better Than Expected Quarterly Results`,
+        summary: `${symbol} announced earnings per share of $2.15, beating analyst expectations by 12%. Revenue also exceeded forecasts due to strong product demand.`,
+        time_published: dateStr,
+        url: '#',
+        sentiment: '0.65'
+      },
+      {
+        title: `New Product Launch from ${symbol} Drives Stock Higher`,
+        summary: `${symbol} unveiled its next-generation platform today, with analysts expecting it to significantly impact market share in the coming quarters.`,
+        time_published: dateStr,
+        url: '#',
+        sentiment: '0.78'
+      },
+      {
+        title: `Market Volatility Impacts ${symbol} Performance`,
+        summary: `Amid broader market fluctuations, ${symbol} experienced pressure on its share price despite solid fundamentals.`,
+        time_published: dateStr,
+        url: '#',
+        sentiment: '-0.25'
+      },
+      {
+        title: `${symbol} Announces Strategic Partnership`,
+        summary: `A new collaboration between ${symbol} and industry leaders aims to expand product offerings and boost revenue streams.`,
+        time_published: dateStr,
+        url: '#',
+        sentiment: '0.55'
+      },
+      {
+        title: `Analyst Report: ${symbol} Given Neutral Rating`,
+        summary: `Recent analyst coverage rates ${symbol} as neutral, citing balanced risk-reward profile in current market conditions.`,
+        time_published: dateStr,
+        url: '#',
+        sentiment: '0.05'
+      }
+    ];
+  };
+  
+  // Use fake news data for the widget
+  setTimeout(() => {
+    // Hide loading indicator
+    loadingIndicator.style.display = 'none';
+    sentimentContainer.style.display = 'block';
+    
+    // Generate fake news for the demo
+    const newsData = generateFakeNews(symbol);
+    
+    // Calculate average sentiment
+    const totalSentiment = newsData.reduce((sum, item) => sum + parseFloat(item.sentiment), 0);
+    const averageSentiment = totalSentiment / newsData.length;
+    
+    // Create sentiment meter
+    createSentimentMeter(sentimentContainer, averageSentiment);
+    
+    // Create news list
+    createNewsList(sentimentContainer, newsData);
+    
+    // Show a notice that this is sample data
+    const fallbackNotice = document.createElement('div');
+    fallbackNotice.textContent = 'Note: Displaying sample data';
+    fallbackNotice.style.color = '#ff9800';
+    fallbackNotice.style.fontSize = '12px';
+    fallbackNotice.style.fontStyle = 'italic';
+    fallbackNotice.style.marginTop = '10px';
+    fallbackNotice.style.textAlign = 'center';
+    sentimentContainer.appendChild(fallbackNotice);
+  }, 1500);
 }
 
 function renderBalanceSheetWidget(grid, symbol = 'NVDA') {
